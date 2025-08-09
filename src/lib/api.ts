@@ -19,7 +19,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle token expiration
+// Handle response errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -27,22 +27,29 @@ api.interceptors.response.use(
     const data = error.response?.data;
 
     if (status === 401) {
+      // Unauthorized — clear local storage and redirect to login
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
     } else if (status === 400 && data?.message) {
-      // Show the message to user (e.g., with alert or your UI notification)
-      alert("You have reached the maximum limit of 3 course enrollments.");
+      // Bad request — show server message (e.g. max enrollment)
+      alert(data.message || "Bad request error.");
+    } else if (status === 500) {
+      // Internal server error
+      console.error('Server error (500):', data);
+      alert('Internal Server Error occurred. Please try again later.');
     } else {
+      // Other errors — log and show generic alert
       console.error('API Error:', status, data);
+      alert(`An error occurred (status ${status}). Please try again.`);
     }
 
     return Promise.reject(error);
   }
 );
 
+// ... your types and APIs unchanged ...
 
-// === Types ===
 export interface User {
   id: number;
   name: string;
@@ -96,7 +103,6 @@ export interface CourseData {
   schedule: string;
 }
 
-// === Auth API ===
 export const authAPI = {
   login: async (data: LoginData): Promise<AuthResponse> => {
     const response = await api.post('/login', data);
@@ -114,7 +120,6 @@ export const authAPI = {
   },
 };
 
-// === Courses API ===
 export const coursesAPI = {
   getAll: async (): Promise<Course[]> => {
     const response = await api.get('/courses');
@@ -136,11 +141,9 @@ export const coursesAPI = {
   },
 };
 
-// === Enrollments API ===
 export const enrollmentsAPI = {
   getAll: async (): Promise<Enrollment[]> => {
-    console.log('Calling:', `${API_BASE_URL}/enrollments`);
-    const response = await api.get('/enrollments'); // ✅ Calls /api/enrollments
+    const response = await api.get('/enrollments');
     return response.data;
   },
 
